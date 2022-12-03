@@ -16,12 +16,14 @@ class BackpackReorganizer
 
     private int $score = 0;
 
+    private int $secondTaskScore = 0;
+
     public function __construct(string $filepath)
     {
         $this->input = file($filepath);
     }
 
-    public function organize(): void
+    public function firstTask(): void
     {
         foreach ($this->input as $backpack) {
             $backpack = trim($backpack);
@@ -38,14 +40,52 @@ class BackpackReorganizer
         }
     }
 
+    public function secondTask(): void
+    {
+        $count = 1;
+        $groups = [];
+        $storage = [];
+
+        foreach ($this->input as $backpack) {
+            $storage[] = trim($backpack);
+
+            if ($count % 3 === 0) {
+                $groups[] = $storage;
+                $storage = [];
+            }
+
+            $count++;
+        }
+
+        foreach ($groups as $group) {
+            $badges = array_unique(array_intersect(
+                str_split($group[0]),
+                str_split($group[1]),
+                str_split($group[2])),
+            );
+
+            $this->secondTaskScore += self::VALUE_DICTIONARY[reset($badges)];
+        }
+    }
+
     public function getScore(): int
     {
         return $this->score;
+    }
+
+    public function getSecondTaskScore(): int
+    {
+        return $this->secondTaskScore;
     }
 }
 
 $filepath = __DIR__ . DIRECTORY_SEPARATOR . 'input.txt';
 $backpackReorganizer = new BackpackReorganizer($filepath);
-$backpackReorganizer->organize();
 
+// First task:
+$backpackReorganizer->firstTask();
 echo $backpackReorganizer->getScore() . PHP_EOL;
+
+// Second task:
+$backpackReorganizer->secondTask();
+echo $backpackReorganizer->getSecondTaskScore() . PHP_EOL;
