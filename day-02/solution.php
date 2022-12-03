@@ -27,6 +27,13 @@ enum PlayerMove: string
     }
 }
 
+enum OptimalOutcome: string
+{
+    case LOSS = 'X';
+    case DRAW = 'Y';
+    case WIN = 'Z';
+}
+
 enum Outcome: int
 {
     case WIN = 6;
@@ -48,6 +55,7 @@ class RockPaperScissors
 
     public function calculate(): void
     {
+        // Part 1
         foreach ($this->input as $line) {
             $turns = explode(' ', trim($line));
 
@@ -59,11 +67,55 @@ class RockPaperScissors
             $this->calculatedScore += $playerMove->score();
             $this->calculatedScore += $outcome->value;
         }
+
+        echo $this->getCalculatedScore() . PHP_EOL;
+        $this->calculatedScore = 0;
+
+        // Part 2
+        foreach ($this->input as $line) {
+            $turns = explode(' ', trim($line));
+
+            $opponentMove = OpponentMove::tryFrom(reset($turns));
+            $optimalOutcome = OptimalOutcome::tryFrom(end($turns));
+
+            $optimalTurn = $this->calculateOptimalTurn($opponentMove, $optimalOutcome);
+            $outcome = $this->performTurn($opponentMove, $optimalTurn);
+
+            $this->calculatedScore += $optimalTurn->score();
+            $this->calculatedScore += $outcome->value;
+        }
+
+        echo $this->getCalculatedScore() . PHP_EOL;
     }
 
     public function getCalculatedScore(): int
     {
         return $this->calculatedScore;
+    }
+
+    private function calculateOptimalTurn(OpponentMove $opponentMove, OptimalOutcome $optimalOutcome): PlayerMove
+    {
+        $dictionary = [
+            OpponentMove::ROCK->value => [
+                OptimalOutcome::WIN->value => PlayerMove::PAPER,
+                OptimalOutcome::DRAW->value => PlayerMove::ROCK,
+                OptimalOutcome::LOSS->value => PlayerMove::SCISSORS,
+            ],
+
+            OpponentMove::PAPER->value => [
+                OptimalOutcome::WIN->value => PlayerMove::SCISSORS,
+                OptimalOutcome::DRAW->value => PlayerMove::PAPER,
+                OptimalOutcome::LOSS->value => PlayerMove::ROCK,
+            ],
+
+            OpponentMove::SCISSORS->value => [
+                OptimalOutcome::WIN->value => PlayerMove::ROCK,
+                OptimalOutcome::DRAW->value => PlayerMove::SCISSORS,
+                OptimalOutcome::LOSS->value => PlayerMove::PAPER,
+            ],
+        ];
+
+        return $dictionary[$opponentMove->value][$optimalOutcome->value];
     }
 
     private function performTurn(OpponentMove $opponentMove, PlayerMove $playerMove): Outcome
@@ -92,6 +144,3 @@ class RockPaperScissors
 
 $filepath = __DIR__ . DIRECTORY_SEPARATOR . 'input.txt';
 $game = new RockPaperScissors($filepath);
-
-// Part 1
-echo $game->getCalculatedScore();
