@@ -1,81 +1,88 @@
-<?php declare(strict_types=1);
+<?php
 
 class SupplyStacker
 {
-    private readonly array $input;
-    private array $stacks = [];
+    private readonly string $rawMatrix;
+    private readonly string $rawInstructions;
+
+    private array $matrix;
+    private array $instructions;
 
     public function __construct(string $filepath)
     {
-        $this->input = file($filepath);
-        $this->parseStacks();
-        $this->shiftStacks();
+        [$this->rawMatrix, $this->rawInstructions] = explode("\n\n", file_get_contents($filepath));
+
+        $this->matrix = $this->parseMatrix($this->rawMatrix);
+        $this->instructions = $this->parseMoves($this->rawInstructions);
     }
 
-    public function parseStacks(): void
+    public function calculate(bool $part2 = false): string
     {
-        foreach ($this->input as $line) {
-            $splitLine = str_split($line);
+        foreach ($this->instructions as $step) {
+            $quantity = $step['move'];
+            $from = $step['from'];
+            $to = $step['to'];
 
-            // Check for the blank line between the stacks and instructions.
-            if (count($splitLine) === 1) {
-                return;
+            $elements = array_slice($this->matrix[$from], - (int) $quantity);
+
+            if (! $part2) {
+                krsort($elements, SORT_NUMERIC);
             }
 
-            foreach ($splitLine as $index => $character) {
-                $index += 3; // Two plus one for zero-index.
-                if ($index % 4 === 0 && ctype_upper($character)) {
-                    $key = $index / 4;
+            array_splice($this->matrix[$from], count($this->matrix[$from]) - $quantity, (int) $quantity);
+            $this->matrix[$to] = array_merge($this->matrix[$to], $elements);
+        }
 
-                    if (empty($this->stacks[$key])) {
-                        $this->stacks[$key] = new SplStack();
-                    }
+        $message = '';
+        foreach ($this->matrix as $row){
+            $message .= end($row);
+        }
 
-                    $this->stacks[$key]->push($character);
+        return $message;
+    }
+
+    private function parseMatrix(string $matrix): array
+    {
+        $lines = explode(PHP_EOL, $matrix);
+        $result = [];
+
+        foreach ($lines as $line) {
+            $lineCharacters = str_split($line, 4);
+
+            foreach ($lineCharacters as $row => $characters)  {
+                ++$row;
+
+                preg_match('/[a-zA-Z]+/', $characters, $letter);
+                $value = reset($letter);
+
+                if (! empty($value)) {
+                    ! empty($result[$row])
+                        ? array_unshift($result[$row], $value)
+                        : $result[$row][] = $value;
                 }
             }
         }
+
+        ksort($result, SORT_NUMERIC);
+
+        return $result;
     }
 
-    public function shiftStacks(): void
+    private function parseMoves(string $raw): array
     {
-        foreach ($this->input as $line) {
-            if (! str_contains($line, 'move')) {
-                continue;
-            }
+        $lines = explode(PHP_EOL, $raw);
+        $result = [];
 
-            // Using array merge this way resets the numerical keys, so we can use destructuring... interesting right?
-            $values = array_merge(array_filter(explode(',', preg_replace('~\D~', ',', $line))));
-            [$quantity, $source, $destination] = $values;
+        foreach ($lines as $lineNumber => $line) {
+            preg_match_all('/(.*?)\s\d+/', $line, $orders);
 
-            for ($i = 0; $i < $quantity; $i++) {
-                $value = $this->stacks[$source]->pop();
-                $this->stacks[$destination]->push($value);
+            foreach (reset($orders) as $order) {
+                [$move, $step] = explode(' ', trim($order));
+                $result[$lineNumber][$move] = $step;
             }
         }
-    }
 
-    public function getTopEntries(): string
-    {
-        // Copy to a local variable as not to mess with the ordering of the original.
-        $stacks = $this->stacks;
-        ksort($stacks, SORT_NUMERIC);
-
-        $entries = '';
-        /** @var \SplStack $stack */
-        foreach ($stacks as $stack) {
-            $entries .= $stack->bottom();
-        }
-
-        return $entries;
-    }
-
-    public function getStacks(): array
-    {
-        $stacks = $this->stacks;
-        ksort($stacks, SORT_NUMERIC);
-
-        return $stacks;
+        return $result;
     }
 }
 
@@ -83,4 +90,8 @@ $filepath = __DIR__ . DIRECTORY_SEPARATOR . 'input.txt';
 $stacker = new SupplyStacker($filepath);
 
 // Task 1:
-echo $stacker->getTopEntries() . PHP_EOL;
+echo $stacker->calculate() . PHP_EOL;
+
+// Task 2:
+$stacker = new SupplyStacker($filepath);
+echo $stacker->calculate(true) . PHP_EOL;
